@@ -42,3 +42,36 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+import collections.abc
+import contextlib
+
+
+class NullAwaitable(contextlib.AbstractAsyncContextManager, collections.abc.Awaitable):
+    """Similar to contextlib.nullcontext, this is an async context manager that does nothing.
+
+    If a value is passed to the constructor, then that value is returned from `__aenter__()`.
+
+    This object is also an awaitable that can be used in an `await` expression, e.g.
+
+        await NullAwaitable()
+
+    The result will be the value of the constructor parameter, which defaults to `None`.
+    """
+
+    def __init__(self, await_result=None):
+        super().__init__()
+        self.await_result = await_result
+
+    def __await__(self):
+        return self.__aenter__().__await__()
+
+    async def __aenter__(self):
+        return self.await_result
+
+    async def __aexit__(self, *excinfo):
+        pass
+
+
+null_awaitable: NullAwaitable = NullAwaitable()
