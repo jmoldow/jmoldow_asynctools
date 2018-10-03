@@ -1,0 +1,7 @@
+pycodestyle
+pylint
+tox
+pytest>=2.8.3
+pytest-cov
+pytest-xdist
+-e .

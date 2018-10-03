@@ -1,3 +1,6 @@
+# Backup files
+*.~
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -14,6 +17,8 @@ dist/
 downloads/
 eggs/
 .eggs/
+bin/
+pypi-dist/
 lib/
 lib64/
 parts/
@@ -46,6 +51,7 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+*,cover
 
 # Translations
 *.mo
@@ -82,13 +88,15 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
-.env
-.venv
+.*env*
+.*v*env*
 env/
 venv/
-ENV/
-env.bak/
-venv.bak/
+.*pyenv*/
+pyenv*/
+*ENV*/
+*env*.*bak*/
+*venv*.*bak*/
 
 # Spyder project settings
 .spyderproject
@@ -102,3 +110,13 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Mac
+.DS_Store
+
+# Misc
+tokens.pk

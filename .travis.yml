@@ -1,0 +1,29 @@
+sudo: false
+language: python
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+
+before_cache:
+  - rm -r -f $HOME/.cache/pip/log
+
+matrix:
+  include:
+    - python: 3.7
+      env: TOX_ENV=py37
+    - python: 3.7
+      env: TOX_ENV=pycodestyle
+    - python: 3.7
+      env: TOX_ENV=pylint
+    - python: 3.7
+      env: TOX_ENV=coverage
+
+# commands to install dependencies
+install:
+  - ./.travis/install.sh
+# commands to run
+script:
+  - ./.travis/run.sh
+after_success:
+  - if [ "-x$TOX_ENV" = "xcoverage" ]; then coveralls; fi
