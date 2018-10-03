@@ -8,38 +8,47 @@ import contextlib
 from unittest.mock import call, Mock
 
 import jmoldow_asynctools
-from jmoldow_asynctools.tasks import yield_loop
+from jmoldow_asynctools.tasks import yield_loop, yield_loop_on_exit, YieldLoop
 
 
-def test_yield_loop():
-    call_values1 = [1, 2, 3]
-    call_values2 = [4, 5, 6]
-    do_yield_loop = False
-    mock = Mock()
+class TestYieldLoop(object):
 
-    async def _task(call_values):
-        for value in call_values:
-            mock(value)
+    def test_yield_loop(self):
+        call_values1 = [1, 2, 3, 4, 5]
+        call_values2 = [6, 7, 8, 9, 10]
+        do_yield_loop = False
+        mock = Mock()
+
+        async def _task(call_values):
+            call_values = iter(call_values)
+            mock(next(call_values))
             if do_yield_loop:
                 await yield_loop
+            mock(next(call_values))
+            async with (yield_loop if do_yield_loop else YieldLoop(on_enter=False, on_exit=False)):
+                mock(next(call_values))
+            async with (yield_loop_on_exit if do_yield_loop else YieldLoop(on_enter=False, on_exit=False)):
+                mock(next(call_values))
+            mock(next(call_values))
 
-    async def _tasks():
-        await asyncio.gather(_task(call_values1), _task(call_values2))
+        async def _tasks():
+            await asyncio.gather(_task(call_values1), _task(call_values2))
 
-    def _assert(expected_calls):
-        mock.assert_has_calls(list(map(call, expected_calls)), any_order=False)
+        def _assert(expected_calls):
+            mock.assert_has_calls(list(map(call, expected_calls)), any_order=False)
 
-    async def _run():
-        nonlocal mock, do_yield_loop
-        mock = Mock()
+        async def _run():
+            nonlocal mock, do_yield_loop
+            mock = Mock()
 
-        await _tasks()
-        _assert([1, 2, 3, 4, 5, 6])
+            await _tasks()
+            # The two loops will execute serially, since neither yields the event loop during execution.
+            _assert([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
-        mock = Mock()
-        # The two loops will be interleaved, since they both yield the event loop to each other between calls.
-        do_yield_loop = True
-        await _tasks()
-        _assert([1, 4, 2, 5, 3, 6])
+            mock = Mock()
+            # The two loops will be interleaved, since they both yield the event loop to each other between calls.
+            do_yield_loop = True
+            await _tasks()
+            _assert([1, 6, 2, 7, 3, 8, 4, 9, 5, 10])
 
-    asyncio.run(_run())
+        asyncio.run(_run())
