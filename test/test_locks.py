@@ -8,7 +8,7 @@ import typing
 from unittest.mock import call, Mock
 
 import jmoldow_asynctools
-from jmoldow_asynctools.locks import AsyncRLock
+from jmoldow_asynctools.locks import AsyncRLock, SharedLock
 from jmoldow_asynctools.tasks import yield_loop
 
 
@@ -103,5 +103,31 @@ class TestAsyncRLock(object):
             rlock = AsyncRLock()
             await asyncio.gather(_task(rlock, mock, 1), _task(rlock, mock, 2), _assert_locked_by_other(rlock))
             _assert(mock, [1, 1, 1, 1, 2, 2, 2, 2])
+
+        asyncio.run(_run())
+
+
+class TestSharedLock(object):
+
+    def test_shared_lock(self):
+        
+        async def _run():
+            lock = SharedLock()
+            async with lock.shared_lock:
+                async with lock.shared_lock:
+                    async with lock.shared_lock:
+                        pass
+
+        asyncio.run(_run())
+
+    def test_exclusive_lock(self):
+        
+        async def _run():
+            lock = SharedLock()
+            async with lock.exclusive_lock:
+                async with lock.shared_lock:
+                    async with lock.exclusive_lock:
+                        async with lock.shared_lock:
+                            pass
 
         asyncio.run(_run())
