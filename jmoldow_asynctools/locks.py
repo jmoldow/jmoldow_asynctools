@@ -27,8 +27,20 @@ class AsyncRLock(contextlib.AbstractAsyncContextManager):
     def locked(self) -> bool:
         return self._lock.locked()
 
+    @property
+    def locked_by_current(self) -> bool:
+        return self.locked() and self.owned_by_current
+
+    @property
+    def locked_by_other(self) -> bool:
+        return self.locked() and (not self.owned_by_current)
+
+    @property
+    def owned_by_current(self) -> bool:
+        return self._owner is asyncio.current_task()
+
     async def acquire(self) -> bool:
-        if self._owner is asyncio.current_task():
+        if self.owned_by_current:
             assert self._lock.locked() and (self._count > 0)
             return self._acquire()
         await self._lock.acquire()
@@ -36,7 +48,7 @@ class AsyncRLock(contextlib.AbstractAsyncContextManager):
         return self._acquire()
 
     def release(self):
-        if self._owner is not asyncio.current_task():
+        if not self.locked_by_current:
             raise RuntimeError("cannot release un-acquired lock")
         assert self._count > 0
         self._count -= 1
