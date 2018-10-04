@@ -8,7 +8,7 @@ import typing
 from unittest.mock import call, Mock
 
 import jmoldow_asynctools
-from jmoldow_asynctools.locks import AsyncRLock
+from jmoldow_asynctools.locks import AsyncRLock, SharedLock
 from jmoldow_asynctools.tasks import yield_loop
 
 
@@ -30,12 +30,28 @@ class TestAsyncRLock(object):
         async def _run():
             rlock = AsyncRLock()
             assert not rlock.locked()
+            assert not rlock.locked_by_current
+            assert not rlock.locked_by_other
+            assert not rlock.owned_by_current
+            assert rlock.owned_by_other
             async with rlock:
                 assert rlock.locked()
+                assert rlock.locked_by_current
+                assert not rlock.locked_by_other
+                assert rlock.owned_by_current
+                assert not rlock.owned_by_other
                 async with rlock:
                     assert rlock.locked()
-                assert rlock.locked()
+                    assert rlock.locked_by_current
+                    assert not rlock.locked_by_other
+                    assert rlock.owned_by_current
+                    assert not rlock.owned_by_other
+                    assert rlock.locked()
             assert not rlock.locked()
+            assert not rlock.locked_by_current
+            assert not rlock.locked_by_other
+            assert not rlock.owned_by_current
+            assert rlock.owned_by_other
 
         asyncio.run(_run())
 
@@ -66,8 +82,12 @@ class TestAsyncRLock(object):
                 await yield_loop
             mock(task_num)
 
-        async def _tasks(rlock: contextlib.AbstractAsyncContextManager, mock: Mock):
-            await asyncio.gather(_task(rlock, mock, 1), _task(rlock, mock, 2))
+        async def _assert_locked_by_other(rlock: AsyncRLock):
+            assert rlock.locked()
+            assert rlock.locked_by_other
+            assert not rlock.locked_by_current
+            assert rlock.owned_by_other
+            assert not rlock.owned_by_current
 
         def _assert(mock: Mock, expected_calls: typing.List[int]):
             mock.assert_has_calls(list(map(call, expected_calls)), any_order=False)
@@ -76,13 +96,39 @@ class TestAsyncRLock(object):
             mock = Mock()
             # With a no-op lock, the calls will be interleaved.
             rlock = jmoldow_asynctools.null_awaitable
-            await _tasks(rlock, mock)
+            await asyncio.gather(_task(rlock, mock, 1), _task(rlock, mock, 2))
             _assert(mock, [1, 2, 1, 2, 1, 2, 1, 2])
 
             mock = Mock()
             # With an RLock, all of the first task's calls will come first, then all of the second task's calls.
             rlock = AsyncRLock()
-            await _tasks(rlock, mock)
+            await asyncio.gather(_task(rlock, mock, 1), _task(rlock, mock, 2), _assert_locked_by_other(rlock))
             _assert(mock, [1, 1, 1, 1, 2, 2, 2, 2])
+
+        asyncio.run(_run())
+
+
+class TestSharedLock(object):
+
+    def test_shared_lock(self):
+        
+        async def _run():
+            lock = SharedLock()
+            async with lock.shared_lock:
+                async with lock.shared_lock:
+                    async with lock.shared_lock:
+                        pass
+
+        asyncio.run(_run())
+
+    def test_exclusive_lock(self):
+        
+        async def _run():
+            lock = SharedLock()
+            async with lock.exclusive_lock:
+                async with lock.shared_lock:
+                    async with lock.exclusive_lock:
+                        async with lock.shared_lock:
+                            pass
 
         asyncio.run(_run())
