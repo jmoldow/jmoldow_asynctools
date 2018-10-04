@@ -109,7 +109,7 @@ class TestAsyncRLock(object):
 
 class TestSharedLock(object):
 
-    def test_shared_lock(self):
+    def test_shared_lock_with_one_task(self):
         
         async def _run():
             lock = SharedLock()
@@ -120,7 +120,17 @@ class TestSharedLock(object):
 
         asyncio.run(_run())
 
-    def test_exclusive_lock(self):
+    def test_shared_lock_with_multiple_tasks(self):
+        
+        async def _run(n, lock=None):
+            lock = lock or SharedLock()
+            async with lock.shared_lock:
+                if n > 0:
+                    await asyncio.gather(asyncio.create_task(_run(n - 1, lock)))
+
+        asyncio.run(_run(4))
+
+    def test_exclusive_lock_with_one_task(self):
         
         async def _run():
             lock = SharedLock()
